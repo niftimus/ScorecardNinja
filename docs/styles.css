@@ -1,0 +1,47 @@
+/*
+To change this license header, choose License Headers in Project Properties.
+To change this template file, choose Tools | Templates
+and open the template in the editor.
+*/
+/* 
+    Created on : 31 Mar 2019, 22:43:43
+    Author     : david
+*/
+
+td.header {
+    border: 1px solid black;
+    padding: 10px;
+}
+
+td.scorecard {
+    border: 1px solid black;
+}
+
+tr.scorecard {
+    display: block;
+    top: 0;
+  }
+
+th.scorecard {
+    background: #cccccc;
+    position: sticky;
+    top: 0;
+  }
+
+button.actions {
+    margin: 5px;
+}
+
+.scorecard-input {
+  width: 90%;
+}
+
+.form-control {
+    display: inline;
+}
+
+.topTable
+{
+    width: 100%;
+    margin-bottom: 12px;
+}

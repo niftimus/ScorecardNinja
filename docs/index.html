@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <!-- Global site tag (gtag.js) - Google Analytics -->
+        <script async src="https://www.googletagmanager.com/gtag/js?id=UA-143783683-1"></script>
+        <script>
+            window.dataLayer = window.dataLayer || [];
+            function gtag() {
+                dataLayer.push(arguments);
+            }
+            gtag('js', new Date());
+
+            gtag('config', 'UA-143783683-1');
+        </script>
+
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+        <meta name="description" content="A web-based golf scorecard, compatible with mobile and desktop browsers. Supports exporting scorecards to XML and PNG format.">
+        <meta name="keywords" content="golf,scorecard,shots,scores">
+        <link rel="icon" type="image/png" href="images/icon.png">
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+        <link rel="stylesheet" href="styles.css">
+        <script type="text/javascript">
+
+            var s = null;
+            var appVersion = "0.1"
+
+            // Wait for the page to load first
+            window.onload = function () {
+
+                // Create a new scorecard but then try to load from local storage if one exists
+                console.log("Attempting to load scorecard from local storage.");
+                sTmp = new Scorecard(4, 18);
+                let savedScorecard = JSON.parse(localStorage.getItem('scorecard'));
+                s = Object.assign(sTmp, savedScorecard);
+                if (s != null) {
+                    // Update course name
+                    document.getElementById("scorecardCourse").value = s.getCourse();
+                    // Update date
+                    document.getElementById("scorecardDate").value = s.getDate();
+                }
+
+                renderScorecard();
+            };
+            function saveScorecard()
+            {
+                localStorage.setItem('scorecard', JSON.stringify(s));
+            }
+
+            function deleteScorecard()
+            {
+                localStorage.removeItem('scorecard');
+                s = new Scorecard(4, 18);
+                // Update course name
+                document.getElementById("scorecardCourse").value = null;
+                // Update date
+                document.getElementById("scorecardDate").value = null;
+                renderScorecard();
+            }
+
+            class Scorecard {
+
+                constructor(numPlayers, numHoles) {
+                    this.course = null;
+                    this.date = new Date();
+                    this.numPlayers = numPlayers;
+                    this.numHoles = numHoles;
+                    this.scores = new Array(numPlayers);
+                    this.players = new Array(numPlayers);
+                    for (let i = 0; i < this.numPlayers; i++) {
+                        // Set player name        
+                        this.players[i] = null;
+                        // Create an array for player scores and initialise
+                        this.scores[i] = new Array(numHoles);
+                        var arr = this.scores[i];
+                        for (let j = 0; j < this.numHoles; j++) {
+                            arr[j] = null;
+                        }
+                    }
+                }
+
+                updateScore(x)
+                {
+                    var playerScores = this.scores[x.playerId];
+                    playerScores[x.holeId] = x.value;
+                    console.log("Updating score to " + x.value + " for player " + x.playerId + " hole " + (x.holeId + 1));
+                }
+
+                deletePlayer(playerId)
+                {
+                    console.log("Deleting player: " + playerId);
+                    if (this.numPlayers > 1) {
+                        this.numPlayers--;
+                    }
+
+                    this.players.splice(playerId, 1);
+                    renderScorecard();
+                }
+
+                addPlayer(playerId)
+                {
+                    console.log("Adding player: " + i);
+                    this.numPlayers++;
+                    this.players.splice(playerId + 1, 0, null);
+                    this.scores[playerId + 1] = new Array(this.numHoles);
+                    renderScorecard();
+                }
+
+                updatePlayer(x)
+                {
+                    console.log("Updating player " + x.myPlayerId + " with " + x.value);
+                    this.players[x.myPlayerId] = x.value;
+                }
+
+                updateCourse(x)
+                {
+                    console.log("Updating course " + x.value);
+                    this.course = x.value;
+                }
+
+                updateDate(x)
+                {
+                    console.log("Updating date " + x.value);
+                    this.date = x.value;
+                }
+
+                getPlayer(playerId)
+                {
+                    return this.players[playerId];
+                }
+
+                getPlayerScore(playerId, holeId)
+                {
+                    var playerScores = this.scores[playerId];
+                    return playerScores[holeId];
+                }
+
+                getPlayerScores(playerId)
+                {
+                    return this.scores[playerId];
+                }
+
+                getPlayerTotal(playerId)
+                {
+                    var playerScores = this.scores[playerId];
+
+                    let getIntOrZero = n => isNaN(parseInt(n)) ? 0 : parseInt(n);
+
+                    return playerScores.reduce(function (a, b) {
+                        return getIntOrZero(a) + getIntOrZero(b)
+                    }, 0);
+
+                }
+
+                getCourse()
+                {
+                    return this.course;
+                }
+
+                getDate()
+                {
+                    return this.date;
+                }
+
+                exportScorecardXML(x)
+                {
+                    var p, e, c, v, i;
+                    // Formulate XML doc string
+                    var d = new Date();
+                    var filename = "golf_scorecard-" + d.toISOString().substr(0, 10).replace(/-/g, '') + "_" + d.getHours() + d.getMinutes() + ".xml";
+                    var xmlDoc = document.implementation.createDocument(null, "scorecard");
+                    var sc = xmlDoc.getElementsByTagName("scorecard")[0];
+                    // Set scorecard root element headers
+                    sc.setAttribute("exportDate", d.getTime());
+                    sc.setAttribute("appVersion", appVersion);
+                    // Set numPlayers
+                    e = xmlDoc.createElement("numPlayers");
+                    v = xmlDoc.createTextNode(s.numPlayers);
+                    e.appendChild(v);
+                    sc.appendChild(e);
+                    // Set numHoles
+                    e = xmlDoc.createElement("numHoles");
+                    v = xmlDoc.createTextNode(s.numHoles);
+                    e.appendChild(v);
+                    sc.appendChild(e);
+                    // Set course
+                    e = xmlDoc.createElement("course");
+                    v = xmlDoc.createTextNode(s.course);
+                    e.appendChild(v);
+                    sc.appendChild(e);
+                    // Set date
+                    e = xmlDoc.createElement("date");
+                    v = xmlDoc.createTextNode(s.date);
+                    e.appendChild(v);
+                    sc.appendChild(e);
+                    p = xmlDoc.createElement("playerScores");
+                    // Iterate through players and names and scores
+                    for (i = 0; i < s.numPlayers; i++)
+                    {
+                        // Create player header
+                        e = xmlDoc.createElement("player");
+                        // Create player name node and populate with value
+                        c = xmlDoc.createElement("name");
+                        v = xmlDoc.createTextNode(s.getPlayer(i));
+                        c.appendChild(v);
+                        // Append player name to player
+                        e.appendChild(c);
+                        // Create scores for player
+                        c = xmlDoc.createElement("scores");
+                        v = xmlDoc.createTextNode(s.getPlayerScores(i));
+                        c.appendChild(v);
+                        // Append scores to player
+                        e.appendChild(c);
+                        // Append player to playerScores
+                        p.appendChild(e);
+                    }
+
+                    // Append players to scorecard
+                    sc.appendChild(p);
+                    // Create XML doc string
+                    var serializer = new XMLSerializer();
+                    var xmlString = serializer.serializeToString(xmlDoc);
+                    // Download XML doc string
+                    var element = document.createElement('a');
+                    element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(xmlString));
+                    element.setAttribute('download', filename);
+                    element.style.display = 'none';
+                    document.body.appendChild(element);
+                    element.click();
+                    document.body.removeChild(element);
+                }
+
+                exportScorecardImage(x)
+                {
+                    var leftMargin = 30, topMargin = 40, scoresLeftMargin = 0, scoresTopMargin = 20, i, j, player, playerScore, course, playDate;
+                    var canvas = document.getElementById("myCanvas");
+                    var ctx = canvas.getContext("2d");
+
+                    // Clear the canvas for redrawing
+                    ctx.fillStyle = "#FFFFFF";
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.fillStyle = "#000000";
+
+
+                    // Print golf icon, course name and date
+                    ctx.font = "30px Arial";
+                    ctx.fillText("\u{26F3}", leftMargin, topMargin + 10);
+                    ctx.font = "24px Arial";
+
+                    course = s.getCourse();
+                    if (course == null) {
+                        course = "My Course";
+                    }
+                    ctx.fillText(course, leftMargin + 40, topMargin);
+                    ctx.font = "12px Arial";
+
+                    if (playDate == null) {
+                        playDate = new Date();
+                    }
+                    playDate = s.getDate();
+                    ctx.fillText(playDate, leftMargin + 40, topMargin + 20);
+                    ctx.font = "bold 12px Arial";
+
+                    // Print player names
+                    for (i = 0; i < s.numPlayers; i++)
+                    {
+                        player = s.getPlayer(i);
+                        if (player == null) {
+                            ctx.fillText("Player " + (i + 1), leftMargin + scoresLeftMargin + 50 + (i * 75), topMargin + scoresTopMargin + 50);
+                        } else
+                        {
+                            ctx.fillText(player, leftMargin + scoresLeftMargin + 50 + (i * 75), topMargin + scoresTopMargin + 50);
+                        }
+                    }
+
+                    // Print scores
+                    for (i = 0; i < s.numHoles; i++)
+                    {
+                        // Print striping        
+                        if (i % 2 == 0) {
+                            ctx.fillStyle = "#e5e7e9"
+                            ctx.fillRect(leftMargin + scoresLeftMargin, 60 + topMargin + scoresTopMargin + (20 * i), 60 + (s.numPlayers * 75), 20);
+                        }
+
+                        // Print hole number
+                        ctx.fillStyle = "#000000"
+
+                        ctx.fillText((i + 1), leftMargin + scoresLeftMargin + 20, 75 + topMargin + scoresTopMargin + (20 * i));
+                        ctx.font = "12px Arial";
+
+
+
+                        // Print scores
+                        for (j = 0; j < s.numPlayers; j++)
+                        {
+                            playerScore = s.getPlayerScore(j, i);
+                            if (playerScore != null)
+                            {
+
+                                ctx.fillText(playerScore, leftMargin + scoresLeftMargin + 50 + (j * 75), 75 + topMargin + scoresTopMargin + (20 * i));
+                            }
+                        }
+
+                    }
+
+                    ctx.font = "bold 12px Arial";
+
+                    // Print totals line
+                    ctx.fillStyle = "#cccccc"
+                    ctx.fillRect(leftMargin + scoresLeftMargin, 60 + topMargin + scoresTopMargin + (20 * s.numHoles), 60 + (s.numPlayers * 75), 20);
+                    ctx.fillStyle = "#000000"
+                    ctx.fillText('Total:', leftMargin + scoresLeftMargin + 10, 75 + topMargin + scoresTopMargin + (20 * s.numHoles));
+
+                    // Print totals
+                    for (j = 0; j < s.numPlayers; j++)
+                    {
+                        var playerTotal = s.getPlayerTotal(j);
+                        if (playerTotal != null)
+                        {
+                            ctx.fillText(playerTotal, leftMargin + scoresLeftMargin + 50 + (j * 75), 75 + topMargin + scoresTopMargin + (20 * s.numHoles));
+                        }
+                    }
+
+                    // get canvas data  
+                    var image = canvas.toDataURL();
+
+                    // create temporary link  
+                    var tmpLink = document.createElement('a');
+                    var d = new Date();
+                    var filename = "golf_scorecard-" + d.toISOString().substr(0, 10).replace(/-/g, '') + "_" + d.getHours() + d.getMinutes() + ".png";
+                    tmpLink.download = filename; // set the name of the download file 
+                    tmpLink.href = image;
+
+                    // temporarily add link to body and initiate the download  
+                    document.body.appendChild(tmpLink);
+                    tmpLink.click();
+                    document.body.removeChild(tmpLink);
+                }
+
+            }
+
+            function renderScorecard() {
+                var body = document.body, tbl = document.getElementById("scorecard");
+                // Clear existing table
+                while (tbl.firstChild) {
+                    tbl.removeChild(tbl.firstChild);
+                }
+
+                var myDiv = document.createElement('div');
+                // Print course name and date
+                var myInput = document.createElement('input');
+                myDiv.appendChild(myInput);
+                myInput.type = "text";
+                myInput.class = "form-control";
+                // Print hole number header
+                var thead = tbl.createTHead();
+                var tr = thead.insertRow();
+                var th = document.createElement('th');
+                tr.appendChild(th);
+                th.appendChild(document.createTextNode('Hole'));
+                th.classList.add("scorecard");
+                // Print player names header
+                for (let i = 0; i < s.numPlayers; i++) {
+                    var th = document.createElement('th');
+                    tr.appendChild(th);
+                    var myDiv = document.createElement('div');
+                    //myDiv.class = 'form-group';
+                    myDiv.setAttribute("class", "form-group");
+                    th.appendChild(myDiv);
+
+                    // Create "delete player" link (only if the player is the 2nd or higher)
+                    if (i > 0) {
+                        var a = document.createElement('a');
+                        var linkText = document.createTextNode("⊖");
+                        a.appendChild(linkText);
+                        a.title = "Delete Player";
+                        a.href = "#";
+                        a.onclick = function () {
+                            s.deletePlayer(i);
+                        };
+                        myDiv.appendChild(a);
+                    }
+
+                    // Print player name headers
+                    var myInput = document.createElement('input');
+                    myInput.type = "text";
+                    myInput.setAttribute("class", "form-control scorecard-input");
+                    myInput.size = 12;
+                    myInput.placeholder = "Player " + (i + 1);
+                    myInput.value = s.getPlayer(i);
+                    myInput.id = "player_" + (i + 1);
+                    myInput.myPlayerId = i;
+                    console.log("Getting player " + myInput.value);
+                    myInput.addEventListener("change", function () {
+                        s.updatePlayer(this);
+                    }, false);
+                    myDiv.appendChild(myInput);
+
+                    // Create "add player" link
+                    var a = document.createElement('a');
+                    var linkText = document.createTextNode("⊕");
+                    a.appendChild(linkText);
+                    a.title = "Add Player";
+                    a.href = "#";
+                    //var myId="addPlayer_" + i;
+                    a.addEventListener("click", function () {
+                        s.addPlayer(i);
+                    });
+                    myDiv.appendChild(a);
+
+                    // Print player scores
+                    var myDiv = document.createElement('div');
+                    th.appendChild(myDiv);
+
+                    myDiv.innerHTML += s.getPlayerTotal(i);
+
+                    th.classList.add("scorecard");
+                }
+
+                var tbody = tbl.appendChild(document.createElement("tbody"));
+                // Print hole scores
+                for (i = 0; i < s.numHoles; i++) {
+
+                    // Print row
+
+                    var tr = tbody.insertRow();
+                    // Print hole number cell
+                    var td = tr.insertCell();
+                    var myDiv = document.createElement('div');
+                    td.appendChild(myDiv);
+                    var myHoleNumber = document.createTextNode(i + 1);
+                    myDiv.appendChild(myHoleNumber);
+                    td.classList.add("scorecard");
+                    // Create a new column for each player in the scorecard
+                    for (j = 0; j < s.numPlayers; j++) {
+                        var td = tr.insertCell();
+                        var myDiv = document.createElement("div");
+                        td.appendChild(myDiv);
+                        var myInput = document.createElement('input');
+                        myInput.type = "number";
+                        myInput.min = 1;
+                        myInput.max = 99;
+                        myInput.playerId = j;
+                        myInput.holeId = i;
+                        myInput.size = 4;
+                        myInput.setAttribute("class", "form-control scorecard-input");
+                        myInput.addEventListener("change", function () {
+                            s.updateScore(this);
+                        }, false);
+                        td.appendChild(myInput);
+                        myInput.value = s.getPlayerScore(j, i);
+                        myDiv.appendChild(myInput);
+                        td.style.border = '1px solid black';
+                    }
+                }
+
+                /*          // Print hole totals
+                 
+                 var tr = tbody.insertRow();
+                 // Print hole number cell
+                 var td = tr.insertCell();
+                 var myDiv = document.createElement('div');
+                 td.appendChild(myDiv);
+                 var myHoleNumber = document.createTextNode(i + 1);
+                 myDiv.appendChild(myHoleNumber);
+                 td.classList.add("scorecard");
+                 // Create a new column for each player in the scorecard
+                 for (j = 0; j < s.numPlayers; j++) {
+                 var td = tr.insertCell();
+                 var myDiv = document.createElement("div");
+                 td.appendChild(myDiv);
+                 var myInput = document.createElement('input');
+                 myInput.type = "number";
+                 myInput.min = 1;
+                 myInput.max = 99;
+                 myInput.playerId = j;
+                 myInput.holeId = i;
+                 myInput.size = 4;
+                 myInput.setAttribute("class", "form-control scorecard-input");
+                 myInput.addEventListener("change", function () {
+                 s.updateScore(this);
+                 }, false);
+                 
+                 td.style.border = '1px solid black';
+                 }*/
+
+
+
+                body.appendChild(tbl);
+            }
+
+
+
+        </script>
+        <title>Golf scorecard</title>
+    </head>
+    <body class="bg-light">
+        <form id="myform">
+            <table  class = "topTable"> 
+                <tr><td class="header">
+                        <div class="form-group">
+                            <label for="scorecardCourse">Course name:</label>
+                            <input type="text" placeholder="Course name" id="scorecardCourse" onchange="s.updateCourse(this)" class="form-control" size="12">
+                        </div>
+                        <div class="form-group">
+                            <label for="scorecardDate">Date:</label>
+                            <input type="date" id="scorecardDate" onchange="s.updateDate(this)" class="form-control">
+                        </div>
+                    </td>
+                    <td class="header">
+                        <div class="form-group">                   
+                            <button id="btnSave" type="button" class="btn btn-outline-primary form-control actions" onclick="saveScorecard()">Save</button> 
+                            <button id="btnExport" type="button" class="btn btn-outline-primary form-control actions" onclick="s.exportScorecardXML(this)">Export as XML</button> 
+                            <button id="btnExport" type="button" class="btn btn-outline-primary form-control actions" onclick="s.exportScorecardImage(this)">Export as Image</button> 
+                            <button id="btnReset" type="button" class="btn btn-outline-primary form-control actions" onclick="deleteScorecard()">Reset</button> 
+                        </div>
+                    </td>
+                </tr>
+            </table>
+            <table id="scorecard" class="table table-striped"></table>
+        </form>
+        <canvas id="myCanvas" width="420" height="594" style="border:1px solid #000000; display:none;">Your browser does not support Canvas.</canvas>
+        <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+    </body>
+</html>
